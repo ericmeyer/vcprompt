@@ -1,0 +1,317 @@
+#!/bin/sh
+
+# Simple tests that do not require any external tools: i.e.
+# these just setup little fake working copies and make sure
+# that vcprompt does the right thing in them.
+
+. ./common.sh
+
+test_no_vc()
+{
+    cd $tmpdir
+    mkdir novc && cd novc
+    assert_vcprompt "no vc 1" ""
+    assert_vcprompt "no vc 2" "" "%n:%b"
+}
+
+test_root()
+{
+    cd /
+    assert_vcprompt "root dir" ""
+}
+
+test_simple_cvs()
+{
+    cd $tmpdir
+    mkdir cvs && cd cvs
+    mkdir CVS && touch CVS/Entries
+
+    assert_vcprompt "cvs notag" "cvs:trunk" "%n:%b"
+
+    echo "Nsometag" > CVS/Tag
+    assert_vcprompt "cvs nobranch" "cvs:(unknown)" "%n:%b"
+
+    echo "Tfoo" > CVS/Tag
+    assert_vcprompt "cvs branch" "foo"
+
+    mkdir build && cd build
+    assert_vcprompt "cvs subdir 1" "foo"
+
+    mkdir CVS && touch CVS/Entries
+    echo "Tblah" > CVS/Tag
+    assert_vcprompt "cvs subdir 2" "blah"
+}
+
+test_simple_git()
+{
+    cd $tmpdir
+    mkdir git && cd git
+    mkdir .git
+
+    assert_vcprompt "git broken 1" ""
+    assert_vcprompt "git broken 2" "" "%n:%b"
+
+    echo 3f786850e387550fdab836ed7e6dc881de23001b > .git/HEAD
+    assert_vcprompt "git nobranch" "(unknown)"
+    assert_vcprompt "git nobranch (show rev)" "(unknown):3f786850e387" "%b:%r"
+
+    echo "ref: refs/heads/foo" > .git/HEAD
+    assert_vcprompt "git branch" "git:foo" "%n:%b"
+
+    mkdir -p .git/refs/heads
+    echo ffca1632148005094dc0d491aa19f8ba7f68b81c > .git/refs/heads/foo
+    assert_vcprompt "git branch and rev" "foo:ffca16321480" "%b:%r"
+
+    mkdir subdir && cd subdir
+    assert_vcprompt "git subdir" "foo"
+}
+
+test_simple_hg()
+{
+    cd $tmpdir
+    mkdir hg && cd hg
+    mkdir .hg
+
+    # Mercurial 1.4 does not create .hg/branch by default
+    assert_vcprompt "hg nobranch" "hg:default" "%n:%b"
+
+    echo foo > .hg/branch
+    assert_vcprompt "hg top" "hg:foo" "%n:%b"
+
+    printf '0123456789abcdefghij\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0' \
+        > .hg/dirstate
+    assert_vcprompt "hg nodeid" "hg:303132333435" "%n:%r"
+
+    printf '0123456789abcdefghijABCDEFGHIJKLMNOPQRST' \
+        > .hg/dirstate
+    assert_vcprompt "hg merge nodeid" "hg:303132333435,414243444546" "%n:%r"
+
+    printf '\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0' > .hg/dirstate
+    printf '\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0' >> .hg/dirstate
+    assert_vcprompt "hg initial nodeid" "hg:" "%n:%r"
+
+    mkdir subdir
+    cd subdir
+    assert_vcprompt "hg subdir" "foo"
+}
+
+test_simple_hg_bookmarks ()
+{
+    cd $tmpdir
+    mkdir hg_bookmarks && cd hg_bookmarks
+    mkdir .hg
+    echo default > .hg/branch
+
+    touch .hg/bookmarks.current
+    assert_vcprompt "hg_bookmarks nobookmark" "hg:default" "%n:%b"
+
+    echo -n blah > .hg/bookmarks.current
+    assert_vcprompt "hg_bookmarks bookmark" "hg:blah" "%n:%b"
+}
+
+test_simple_hg_mq ()
+{
+    cd $tmpdir
+    mkdir hg_mq && cd hg_mq
+    mkdir .hg
+
+    echo foo > .hg/branch
+    assert_vcprompt "hg_mq nomq" "hg:/foo" "%n:%r/%b"
+
+    mkdir .hg/patches
+    touch .hg/patches/status
+    assert_vcprompt "hg_mq applied 0" "hg:/foo" "%n:%r/%b"
+
+    printf '0123456789abcdefghij\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0' \
+        > .hg/dirstate
+    echo '303132333435363738396162636465666768696a:bar.diff' >> .hg/patches/status
+    assert_vcprompt "hg_mq applied 1" "hg:303132333435[bar.diff]/foo" "%n:%r/%b"
+
+    printf 'a123456789abcdefghij\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0' \
+        > .hg/dirstate
+    echo '613132333435363738396162636465666768696a:baz.diff' >> .hg/patches/status
+    echo > .hg/patches.queue  # default queue
+    assert_vcprompt "hg_mq applied 2" "hg:613132333435[baz.diff]/foo" "%n:%r/%b"
+
+    mkdir .hg/patches-foo
+    printf 'a123456789abcdefghij\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0' \
+        > .hg/dirstate
+    echo '613132333435363738396162636465666768696a:baz.diff' >> .hg/patches-foo/status
+    echo 'foo' > .hg/patches.queue  # named queue
+    assert_vcprompt "hg_mq applied named mq" "hg:613132333435[baz.diff]/foo" "%n:%r/%b"
+}
+
+test_simple_hg_revlog ()
+{
+    cd $tmpdir
+    mkdir hg_tip && cd hg_tip
+    mkdir .hg .hg/store
+
+    # not inlined
+    (
+        printf '\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0'
+        printf '0123456789abcdefghij\0\0\0\0\0\0\0\0\0\0\0\0'
+
+        printf '\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0'
+        printf 'a123456789abcdefghij\0\0\0\0\0\0\0\0\0\0\0\0'
+    ) > .hg/store/00changelog.i
+
+    printf '0123456789abcdefghij\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0' \
+        > .hg/dirstate
+    assert_vcprompt "hg_revlog notip" "hg:0:303132333435" "%n:%r"
+
+    printf 'a123456789abcdefghij\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0' \
+        > .hg/dirstate
+    assert_vcprompt "hg_revlog tip" "hg:1:613132333435[tip]" "%n:%r"
+
+    # inlined
+    (
+        printf '\0\001\0\0\0\0\0\0\0\0\0\002\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0'
+        printf '0123456789abcdefghij\0\0\0\0\0\0\0\0\0\0\0\0'
+        printf '\0\0'  # inlined data
+
+        printf '\0\0\0\0\0\0\0\0\0\0\0\001\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0'
+        printf 'a123456789abcdefghij\0\0\0\0\0\0\0\0\0\0\0\0'
+        printf '\0'  # inlined data
+    ) > .hg/store/00changelog.i
+
+    printf '0123456789abcdefghij\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0' \
+        > .hg/dirstate
+    assert_vcprompt "hg_revlog inlined notip" "hg:0:303132333435" "%n:%r"
+
+    printf 'a123456789abcdefghij\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0' \
+        > .hg/dirstate
+    assert_vcprompt "hg_revlog inlined tip" "hg:1:613132333435[tip]" "%n:%r"
+}
+
+test_simple_svn()
+{
+    cd $tmpdir
+    mkdir simple_svn && cd simple_svn
+    mkdir .svn
+
+    assert_vcprompt "svn broken" "" "%n:%r"
+
+    cat > .svn/entries <<EOF
+10
+
+dir
+123
+file:///whatever
+file:///whatever
+
+
+
+2009-05-17T11:31:06.550081Z
+123
+EOF
+    assert_vcprompt "svn revision" "svn:123" "%n:%r"
+}
+
+test_xml_svn()
+{
+    cd $tmpdir
+    mkdir xml_svn && cd xml_svn
+    mkdir .svn
+
+    cat > .svn/entries <<EOF
+<?xml version="1.0" encoding="utf-8"?>
+<wc-entries
+   xmlns="svn:">
+<entry
+   committed-rev="14"
+   name=""
+   committed-date="2007-01-02T23:04:49.013976Z"
+   url="svn+ssh://blah/home/svn/project/trunk"
+   last-author="greg"
+   kind="dir"
+   uuid="8d4eacf1-9596-41ff-ba68-66ac5da389ce"
+   url="svn+ssh://blah/home/svn/project"
+   prop-time="2007-01-04T01:48:15.000000Z"
+   revision="14"/>
+EOF
+
+   assert_vcprompt "svn xml 1" "svn:14" "%n:%r"
+}
+
+test_truncated_svn()
+{
+    cd $tmpdir
+    mkdir truncated_svn && cd truncated_svn
+    mkdir .svn
+    cat > .svn/entries <<EOF
+10
+
+EOF
+    assert_vcprompt "svn truncated 1" "" "%n:%r"
+
+    # Add one more line to the entries file: it's still truncated!
+    echo "dir" >> .svn/entries
+    assert_vcprompt "svn truncated 2" "" "%n:%r"
+}
+
+test_bad_dir()
+{
+    cd $tmpdir
+    set -e
+    mkdir -p d1/d2
+    cd d1/d2
+    chmod a-rx ..
+    assert_vcprompt "bad dir" ""
+    chmod a+rx ..
+}
+
+test_env_var()
+{
+    cd $tmpdir
+
+    mkdir env_var && cd env_var
+    mkdir .hg
+
+    VCPROMPT_FORMAT='foo:%n' assert_vcprompt 'env var' 'foo:hg' '-'
+    VCPROMPT_FORMAT='foo:%n' assert_vcprompt 'env var override' 'bar:hg' 'bar:%n'
+}
+
+test_help()
+{
+    cd $tmpdir
+
+    if $vcprompt -h > /dev/null; then
+        echo "fail: help exit status: expected non-zero" >&2
+        failed="y"
+    else
+        echo "pass: help exit status"
+    fi
+
+    for pat in '%b' '%r' '%u' '%m' '%n' '%%'; do
+        if ! $vcprompt -h | grep "$pat" > /dev/null; then
+            echo "fail: help text should contain '$pat'" >&2
+            failed="y"
+        fi
+    done
+    echo "pass: help text"
+}
+
+#set -e
+
+find_vcprompt
+setup
+
+failed=""
+
+test_no_vc
+test_root
+test_simple_cvs
+test_simple_git
+test_simple_hg
+test_simple_hg_bookmarks
+test_simple_hg_mq
+test_simple_hg_revlog
+test_simple_svn
+test_xml_svn
+test_truncated_svn
+test_bad_dir
+test_env_var
+test_help
+
+report

@@ -1,0 +1,39 @@
+#!/bin/sh
+
+# Setup the test git repository that will be used by test-git.
+# 
+# Output is git-repo.tar, which can be unpacked for each test -- that
+# way tests can modify the repo and/or working dir without harming
+# other tests.
+
+. ./common.sh
+
+check_available "git --version " "git version"
+set -ex
+cd `dirname $0`
+rm -rf git-repo
+git init git-repo
+cd git-repo
+
+git config user.name "test"
+git config user.email "test"
+
+# two files tracked by git
+echo a > a
+echo b > b
+git add -A
+git commit -m"add a, b"
+
+# uncommitted change to b
+echo foo >> b
+
+# some ignored files
+echo "*.o" > .git/info/exclude
+touch a.o
+
+# an unknown file ("other" in git-speak)
+touch junk
+
+cd ..
+tar -cf git-repo.tar git-repo
+rm -rf git-repo
