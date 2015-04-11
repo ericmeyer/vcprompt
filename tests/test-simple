@@ -89,10 +89,11 @@ test_simple_hg()
     printf '\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0' > .hg/dirstate
     printf '\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0' >> .hg/dirstate
     assert_vcprompt "hg initial nodeid" "hg:" "%n:%r"
-
+    _ping
     mkdir subdir
     cd subdir
     assert_vcprompt "hg subdir" "foo"
+    _pong
 }
 
 test_simple_hg_bookmarks ()

@@ -46,6 +46,30 @@ cleanup()
     rm -rf $tmpdir
 }
 
+_ping ()
+{
+    echo '^^^^ PING ^^^^'
+    if [ "$@" ]; then
+        args="$@"
+        echo "\$@: \`$@\`"
+        for ((idx = 0; idx < $#; ++idx)); do
+            echo "\$$idx: \`$args{$idx}\`";
+        done
+    fi
+}
+
+_pong ()
+{
+    echo '$$$$ PONG $$$$'
+    if [ "$@" ]; then
+        args="$@"
+        echo "\$@: \`$@\`"
+        for ((idx = 0; idx < $#; ++idx)); do
+            echo "\$$idx: \`$args{$idx}\`";
+        done
+    fi
+}
+
 assert_vcprompt()
 {
     message=$1
@@ -63,7 +87,8 @@ assert_vcprompt()
 
     if [ "$expect" != "$actual" ]; then
         echo "fail: $message: expected \"$expect\", but got \"$actual\"" >&2
-        failed="y"
+        failed="y" # this probably won't do anything, 
+                   # since it isn't global.
         return 1
     else
         echo "pass: $message"
@@ -73,10 +98,10 @@ assert_vcprompt()
 report()
 {
     if [ "$failed" ]; then
-	echo "$0: some tests failed"
-	exit 1
+        echo "$0: some tests failed"
+        exit 1
     else
-	echo "$0: all tests passed"
-	exit 0
+        echo "$0: all tests passed"
+        exit
     fi
 }
