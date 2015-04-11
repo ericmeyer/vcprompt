@@ -79,7 +79,7 @@ test_no_unknown()
 }
 
 # "%s" expands to nothing if no unstaged files
-test_staged_files {
+test_staged_files () {
 	pretest
 	touch .git/new_file
 	git add .git/new_file

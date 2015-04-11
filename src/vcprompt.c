@@ -157,7 +157,8 @@ vccontext_t* probe_all(vccontext_t** contexts, int num_contexts)
         if (ctx->probe(ctx)) {
             /* XXX fixes 3 memory leaks */
             while (++idx < num_contexts) {
-                free(contexts[idx]);
+                if (contexts[idx])
+                    free(contexts[idx]);
             }
             return ctx;
         } else {
