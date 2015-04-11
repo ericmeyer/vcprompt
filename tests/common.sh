@@ -1,5 +1,5 @@
 # where to find all the test files
-testdir=$PWD
+testdir="$PWD"
 
 # other globals set by functions here
 vcprompt=""
