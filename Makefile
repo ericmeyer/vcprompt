@@ -1,6 +1,6 @@
 ## GNU Makefile
 
-CFLAGS = -Wall -Wextra -Wno-unused-parameter -g -O2 -ggdb
+CFLAGS = -Wall -Wextra -Wno-unused-parameter -g -O2
 
 headers = $(wildcard src/*.h)
 sources = $(wildcard src/*.c)
