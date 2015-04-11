@@ -20,7 +20,13 @@ typedef struct {
     int show_unknown;                   /* show ? if unknown files? */
     int show_modified;                  /* show ! if local changes? */
     int show_staged;                    /* show * if local staged changes? */
-} options_t;
+} options_t; /* XXX names that end in `_t' are reserved for future
+              * extensions to the C language or the POSIX.1
+              * environment.  While using these names for your
+              * own purposes right now might not cause a problem,
+              * they do raise the possibility of conflict with
+              * future versions of the C or POSIX standards,
+              * so you should avoid these names. */
 
 /* What we figured out by analyzing the working dir: info that
  * will be printed to stdout for the shell to incorporate into
@@ -54,14 +60,20 @@ init_context(const char *name,
              options_t* options,
              int (*probe)(vccontext_t*),
              result_t* (*get_info)(vccontext_t*));
-void
-free_context(vccontext_t* context);
-    
+
 result_t*
 init_result();
 
+# define free_result(VCP_result_t)              \
+    do {                                        \
+            free((VCP_result_t)->revision);     \
+            free((VCP_result_t)->branch);       \
+            free((VCP_result_t));               \
+    } while (0)
+# if 0
 void
 free_result(result_t*);
+# endif
 
 /* printf()-style output of fmt and other args to stdout, but only if
  * debug mode is on (e.g. from the command line -d).

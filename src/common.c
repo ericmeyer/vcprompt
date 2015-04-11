@@ -23,12 +23,14 @@ result_t* init_result()
     return (result_t*) calloc(1, sizeof(result_t));
 }
 
+#if 0
 void free_result(result_t* result)
 {
     free(result->revision);
     free(result->branch);
     free(result);
 }
+#endif
 
 static options_t* _options = NULL;
 
@@ -75,13 +77,7 @@ init_context(const char *name,
     return context;
 }
 
-void
-free_context(vccontext_t* context)
-{
-    free(context);
-}
-
-void
+void /* FIXME, shouldn't this be a macro? */
 debug(char* fmt, ...)
 {
     va_list args;
@@ -179,8 +175,7 @@ read_file(const char* filename, char* buf, int size)
     FILE* file;
     int readsize;
 
-    file = fopen(filename, "r");
-    if (file == NULL) {
+    if ((file = fopen(filename, "r")) == NULL) {
         debug("error opening '%s': %s", filename, strerror(errno));
         return 0;
     }
