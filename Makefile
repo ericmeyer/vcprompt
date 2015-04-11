@@ -1,12 +1,13 @@
+## GNU Makefile
 
 CFLAGS = -Wall -Wextra -Wno-unused-parameter -g -O2
 
 headers = $(wildcard src/*.h)
 sources = $(wildcard src/*.c)
-objects = $(subst .c,.o,$(sources))
+objects = $(sources:.c=.o)
 
 vcprompt: $(objects)
-	$(CC) -o $@ $(objects)
+	$(CC) $(LDFLAGS) $(CPPFLAGS) -o $@ $(objects)
 
 # Maximally pessimistic view of header dependencies.
 $(objects): $(headers)
@@ -26,11 +27,11 @@ $(gitrepo): tests/setup-git
 	cd tests && ./setup-git
 
 clean:
-	rm -f $(objects) vcprompt
+	$(RM) $(objects) vcprompt
 
 DESTDIR =
 PREFIX = /usr/local
 .PHONY: install
 install: vcprompt
-	install -d $(DESTDIR)$(PREFIX)/bin
-	install -m 755 vcprompt $(DESTDIR)$(PREFIX)/bin
+	install -d $(DESTDIR)/$(PREFIX)/bin
+	install -m 755 vcprompt $(DESTDIR)/$(PREFIX)/bin

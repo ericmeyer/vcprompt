@@ -151,10 +151,18 @@ void print_result(vccontext_t* context, options_t* options, result_t* result)
 vccontext_t* probe_all(vccontext_t** contexts, int num_contexts)
 {
     int idx;
+    vccontext_t* ctx = NULL;
     for (idx = 0; idx < num_contexts; idx++) {
-        vccontext_t* ctx = contexts[idx];
+        ctx = contexts[idx];
         if (ctx->probe(ctx)) {
+            /* XXX fixes 3 memory leaks */
+            while (++idx < num_contexts) {
+                if (contexts[idx])
+                    free(contexts[idx]);
+            }
             return ctx;
+        } else {
+            free(ctx); /* XXX resolves 1 memory leak */
         }
     }
     return NULL;
@@ -230,6 +238,7 @@ int main(int argc, char** argv)
     if (result != NULL) {
         print_result(context, &options, result);
         free_result(result);
+        free(context); /* XXX fixes 1 memory leak */
         if (options.debug)
             putc('\n', stdout);
     }
