@@ -65,7 +65,7 @@ All other characters are expanded as-is.
 
 The default format string is
 
-  [%n:%b]
+  [%n:%b%m%u]
 
 which is notable because it works with every supported VC system.  In
 fact, some features are meaningless with some systems: there is no
